@@ -1,0 +1,120 @@
+name: API Review
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "app/**"
+      - "main.py"
+      - "scripts/**"
+      - "requirements.txt"
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  api-review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # ── 导出 PR 分支的 OpenAPI spec ──
+      - name: Export revision spec (PR branch)
+        run: python scripts/export_openapi.py openapi-revision.json
+
+      # ── 导出 main 分支的 OpenAPI spec（作为基准） ──
+      - name: Export base spec (main branch)
+        id: base-spec
+        run: |
+          git fetch origin main --depth=1 || { echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0; }
+
+          # 暂存 PR 分支的源文件，切换到 main 的版本来生成基准 spec
+          git stash --include-untracked
+
+          git checkout origin/main -- app/ main.py scripts/export_openapi.py 2>/dev/null || {
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            git stash pop || true
+            exit 0
+          }
+
+          python scripts/export_openapi.py openapi-base.json 2>/dev/null || {
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            git checkout -- . 2>/dev/null || true
+            git stash pop || true
+            exit 0
+          }
+
+          # 恢复 PR 分支文件
+          git checkout -- . 2>/dev/null || true
+          git stash pop || true
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+
+      # ── Spectral Lint ──
+      - name: Spectral lint
+        uses: stoplightio/spectral-action@latest
+        with:
+          file_glob: openapi-revision.json
+
+      # ── 破坏性变更检测 ──
+      - name: Check breaking changes
+        if: steps.base-spec.outputs.skip != 'true'
+        uses: oasdiff/oasdiff-action/breaking@main
+        with:
+          base: openapi-base.json
+          revision: openapi-revision.json
+
+      # ── 变更日志 ──
+      - name: Generate changelog
+        if: steps.base-spec.outputs.skip != 'true'
+        id: changelog
+        uses: oasdiff/oasdiff-action/changelog@main
+        with:
+          base: openapi-base.json
+          revision: openapi-revision.json
+
+      # ── PR 评论：有基准时显示变更摘要 ──
+      - name: Comment PR with API changes
+        if: steps.base-spec.outputs.skip != 'true'
+        uses: mshick/add-pr-comment@v2
+        with:
+          message-id: api-review
+          message: |
+            ## 🔍 API Review
+
+            ### Spectral Lint
+            ✅ Passed
+
+            ### API Changes
+            ```
+            ${{ steps.changelog.outputs.changelog }}
+            ```
+
+            > 由 CI 自动生成，每次推送更新。
+
+      # ── PR 评论：无基准时显示初始定义 ──
+      - name: Comment PR (initial API)
+        if: steps.base-spec.outputs.skip == 'true'
+        uses: mshick/add-pr-comment@v2
+        with:
+          message-id: api-review
+          message: |
+            ## 🔍 API Review
+
+            ### Spectral Lint
+            ✅ Passed
+
+            ### API Changes
+            📋 这是初始 API 定义，无基准可比较。合并后将作为后续 PR 的基准。
+
+            > 由 CI 自动生成，每次推送更新。
