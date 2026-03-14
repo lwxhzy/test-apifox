@@ -1,0 +1,37 @@
+name: API CI
+
+on:
+  pull_request:
+    branches: [dev]
+    paths:
+      - "app/**"
+      - "main.py"
+      - "scripts/**"
+      - "requirements.txt"
+  push:
+    branches: [dev]
+    paths:
+      - "app/**"
+      - "main.py"
+      - "scripts/**"
+      - "requirements.txt"
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    if: github.event_name == 'pull_request'
+    uses: lwxhzy/api-workflows/.github/workflows/api-review.yml@main
+    with:
+      export-command: "python scripts/export_openapi.py"
+      base-branch: dev
+    secrets: inherit
+
+  sync:
+    if: github.event_name == 'push'
+    uses: lwxhzy/api-workflows/.github/workflows/sync-apifox.yml@main
+    with:
+      export-command: "python scripts/export_openapi.py"
+    secrets: inherit
