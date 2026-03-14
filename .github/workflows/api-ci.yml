@@ -9,6 +9,13 @@ on:
       - "main.py"
       - "scripts/**"
       - "requirements.txt"
+  push:
+    branches: [dev]
+    paths:
+      - "app/**"
+      - "main.py"
+      - "scripts/**"
+      - "requirements.txt"
 
 permissions:
   contents: read
@@ -16,7 +23,7 @@ permissions:
 
 jobs:
   review:
-    if: github.event.action != 'closed'
+    if: github.event_name == 'pull_request' && github.event.action != 'closed'
     uses: lwxhzy/api-workflows/.github/workflows/api-review.yml@main
     with:
       setup-command: "pip install -r requirements.txt"
@@ -25,7 +32,9 @@ jobs:
     secrets: inherit
 
   sync:
-    if: github.event.pull_request.merged == true
+    if: >-
+      github.event_name == 'push' ||
+      (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
     uses: lwxhzy/api-workflows/.github/workflows/sync-apifox.yml@main
     with:
       setup-command: "pip install -r requirements.txt"
