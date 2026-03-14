@@ -25,6 +25,7 @@ jobs:
     if: github.event_name == 'pull_request'
     uses: lwxhzy/api-workflows/.github/workflows/api-review.yml@main
     with:
+      setup-command: "pip install -r requirements.txt"
       export-command: "python scripts/export_openapi.py"
       base-branch: dev
     secrets: inherit
@@ -33,5 +34,6 @@ jobs:
     if: github.event_name == 'push'
     uses: lwxhzy/api-workflows/.github/workflows/sync-apifox.yml@main
     with:
+      setup-command: "pip install -r requirements.txt"
       export-command: "python scripts/export_openapi.py"
     secrets: inherit
