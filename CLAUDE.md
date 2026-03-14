@@ -2,6 +2,10 @@
 
 本文件为 Claude Code (claude.ai/code) 提供项目指引。
 
+## API 编码规范
+
+编写或修改 API 代码（schemas.py、views.py）时，**必须**遵循 `.claude/api-conventions.md` 中的规范。
+
 ## 常用命令
 
 ```bash
