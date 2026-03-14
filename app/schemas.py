@@ -280,3 +280,29 @@ class DashboardResponse(BaseModel):
     total_orders: int = Field(..., description="订单总数", examples=[8192])
     total_revenue: float = Field(..., description="累计营收", examples=[1256800.00])
     recent_stats: List[DailyStat] = Field(..., description="最近 7 天统计")
+
+
+# ──────────────────────────────────────────────
+# 收藏模块
+# ──────────────────────────────────────────────
+
+class FavoriteCreate(BaseModel):
+    item_id: int = Field(..., description="要收藏的物品 ID", examples=[1])
+    note: Optional[str] = Field(
+        None, description="收藏备注", max_length=200, examples=["下次打折再买"],
+    )
+
+
+class FavoriteResponse(BaseModel):
+    id: int = Field(..., description="收藏记录 ID", examples=[1])
+    user_id: int = Field(..., description="用户 ID", examples=[1])
+    item_id: int = Field(..., description="物品 ID", examples=[1])
+    item_name: str = Field(..., description="物品名称", examples=["苹果"])
+    item_price: float = Field(..., description="物品当前价格", examples=[9.99])
+    note: Optional[str] = Field(None, description="收藏备注")
+    created_at: str = Field(..., description="收藏时间", examples=["2024-01-01T12:00:00Z"])
+
+
+class FavoriteListResponse(BaseModel):
+    items: List[FavoriteResponse] = Field(..., description="收藏列表")
+    total: int = Field(..., description="总数量", examples=[5])

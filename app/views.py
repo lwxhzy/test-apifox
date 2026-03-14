@@ -14,6 +14,8 @@ from app.schemas import (
     OrderCreate, OrderResponse, OrderListResponse, OrderStatus,
     # 统计
     DashboardResponse,
+    # 收藏
+    FavoriteCreate, FavoriteResponse, FavoriteListResponse,
 )
 
 router = APIRouter(prefix="/api/v1")
@@ -342,6 +344,20 @@ async def update_item_status(
     }
 
 
+@item_router.get(
+    "/search",
+    summary="搜索物品（旧版）",
+    description="已废弃，请使用 GET /api/v1/items 的 keyword 参数代替",
+    deprecated=True,
+    response_model=ItemListResponse,
+    responses=RESP_401,
+)
+async def search_items_deprecated(
+    q: str = Query(..., description="搜索关键词"),
+):
+    return {"items": [], "total": 0}
+
+
 # ──────────────────────────────────────────────
 # 订单管理
 # ──────────────────────────────────────────────
@@ -508,6 +524,57 @@ async def get_dashboard():
     }
 
 
+# ──────────────────────────────────────────────
+# 收藏管理
+# ──────────────────────────────────────────────
+
+favorite_router = APIRouter(prefix="/favorites", tags=["收藏管理"])
+
+
+@favorite_router.get(
+    "",
+    summary="获取收藏列表",
+    description="获取当前用户的收藏列表，按收藏时间倒序",
+    response_model=FavoriteListResponse,
+    responses=RESP_401,
+)
+async def list_favorites(
+    page: int = Query(1, description="页码", ge=1),
+    page_size: int = Query(20, description="每页数量", ge=1, le=100),
+):
+    return {"items": [], "total": 0}
+
+
+@favorite_router.post(
+    "",
+    summary="添加收藏",
+    description="将指定物品加入当前用户的收藏夹，同一物品不可重复收藏",
+    response_model=FavoriteResponse,
+    status_code=201,
+    responses={**RESP_401, **RESP_404, **RESP_409},
+)
+async def add_favorite(body: FavoriteCreate):
+    return {
+        "id": 1, "user_id": 1, "item_id": body.item_id,
+        "item_name": "苹果", "item_price": 9.99,
+        "note": body.note,
+        "created_at": "2024-01-01T12:00:00Z",
+    }
+
+
+@favorite_router.delete(
+    "/{favorite_id}",
+    summary="取消收藏",
+    description="根据收藏记录 ID 移除收藏",
+    response_model=MessageResponse,
+    responses={**RESP_401, **RESP_404},
+)
+async def remove_favorite(
+    favorite_id: int = Path(..., description="收藏记录 ID", examples=[1]),
+):
+    return {"message": "已取消收藏"}
+
+
 # ── 注册所有子路由 ──
 
 router.include_router(auth_router)
@@ -516,3 +583,4 @@ router.include_router(category_router)
 router.include_router(item_router)
 router.include_router(order_router)
 router.include_router(stats_router)
+router.include_router(favorite_router)
