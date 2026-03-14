@@ -16,6 +16,10 @@ from app.schemas import (
     DashboardResponse,
     # 收藏
     FavoriteCreate, FavoriteResponse, FavoriteListResponse,
+    # 评价
+    ReviewCreate, ReviewResponse, ReviewListResponse, ReviewStatsResponse,
+    # 文件
+    UploadResponse,
 )
 
 router = APIRouter(prefix="/api/v1")
@@ -575,6 +579,97 @@ async def remove_favorite(
     return {"message": "已取消收藏"}
 
 
+# ──────────────────────────────────────────────
+# 评价管理
+# ──────────────────────────────────────────────
+
+review_router = APIRouter(prefix="/reviews", tags=["评价管理"])
+
+
+@review_router.get(
+    "/items/{item_id}",
+    summary="获取物品评价列表",
+    description="获取指定物品的所有评价，按时间倒序，包含平均评分",
+    response_model=ReviewListResponse,
+)
+async def list_item_reviews(
+    item_id: int = Path(..., description="物品 ID", examples=[1]),
+    rating: Optional[int] = Query(None, description="按评分筛选，1-5", ge=1, le=5),
+    page: int = Query(1, description="页码", ge=1),
+    page_size: int = Query(20, description="每页数量", ge=1, le=50),
+):
+    return {"items": [], "total": 0, "avg_rating": 0.0}
+
+
+@review_router.get(
+    "/items/{item_id}/stats",
+    summary="获取物品评价统计",
+    description="获取指定物品的评价统计数据，包含各星级分布",
+    response_model=ReviewStatsResponse,
+)
+async def get_review_stats(
+    item_id: int = Path(..., description="物品 ID", examples=[1]),
+):
+    return {
+        "total": 128, "avg_rating": 4.3,
+        "rating_distribution": {"5": 60, "4": 35, "3": 20, "2": 8, "1": 5},
+    }
+
+
+@review_router.post(
+    "",
+    summary="提交评价",
+    description="对已完成的订单商品提交评价，每个订单商品只能评价一次",
+    response_model=ReviewResponse,
+    status_code=201,
+    responses={**RESP_401, **RESP_404, **RESP_409, **RESP_422},
+)
+async def create_review(body: ReviewCreate):
+    return {
+        "id": 1, "user_id": 1, "username": "zhangsan",
+        "item_id": body.item_id, "order_id": body.order_id,
+        "rating": body.rating, "content": body.content,
+        "images": body.images,
+        "created_at": "2024-01-05T14:30:00Z",
+    }
+
+
+@review_router.delete(
+    "/{review_id}",
+    summary="删除评价",
+    description="删除自己发布的评价，管理员可删除任何评价",
+    response_model=MessageResponse,
+    responses={**RESP_401, **RESP_403, **RESP_404},
+)
+async def delete_review(
+    review_id: int = Path(..., description="评价 ID", examples=[1]),
+):
+    return {"message": "评价已删除"}
+
+
+# ──────────────────────────────────────────────
+# 文件上传
+# ──────────────────────────────────────────────
+
+upload_router = APIRouter(prefix="/upload", tags=["文件上传"])
+
+
+@upload_router.post(
+    "/image",
+    summary="上传图片",
+    description="上传图片文件，支持 jpg/png/webp 格式，单文件最大 5MB",
+    response_model=UploadResponse,
+    responses={**RESP_401, 400: {"model": ErrorResponse, "description": "文件格式不支持或超过大小限制"}},
+)
+async def upload_image():
+    return {
+        "url": "https://cdn.example.com/uploads/2024/01/abc123.jpg",
+        "filename": "photo.jpg",
+        "size": 204800,
+        "content_type": "image/jpeg",
+    }
+
+
 # ── 注册所有子路由 ──
 
 router.include_router(auth_router)
@@ -584,3 +679,5 @@ router.include_router(item_router)
 router.include_router(order_router)
 router.include_router(stats_router)
 router.include_router(favorite_router)
+router.include_router(review_router)
+router.include_router(upload_router)

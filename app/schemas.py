@@ -306,3 +306,65 @@ class FavoriteResponse(BaseModel):
 class FavoriteListResponse(BaseModel):
     items: List[FavoriteResponse] = Field(..., description="收藏列表")
     total: int = Field(..., description="总数量", examples=[5])
+
+
+# ──────────────────────────────────────────────
+# 评价模块
+# ──────────────────────────────────────────────
+
+class ReviewCreate(BaseModel):
+    item_id: int = Field(..., description="物品 ID", examples=[1])
+    order_id: int = Field(..., description="关联订单 ID", examples=[1001])
+    rating: int = Field(
+        ..., description="评分，1-5 星", ge=1, le=5, examples=[5],
+    )
+    content: str = Field(
+        ..., description="评价内容", min_length=10, max_length=500,
+        examples=["非常好的商品，物超所值，下次还会再买！"],
+    )
+    images: List[str] = Field(
+        default_factory=list,
+        description="评价图片 URL 列表，最多 9 张",
+        examples=[["https://cdn.example.com/review/1.jpg"]],
+    )
+
+
+class ReviewResponse(BaseModel):
+    id: int = Field(..., description="评价 ID", examples=[1])
+    user_id: int = Field(..., description="评价者 ID", examples=[1])
+    username: str = Field(..., description="评价者用户名", examples=["zhangsan"])
+    item_id: int = Field(..., description="物品 ID")
+    order_id: int = Field(..., description="关联订单 ID")
+    rating: int = Field(..., description="评分")
+    content: str = Field(..., description="评价内容")
+    images: List[str] = Field(default_factory=list, description="评价图片")
+    created_at: str = Field(..., description="评价时间", examples=["2024-01-05T14:30:00Z"])
+
+
+class ReviewListResponse(BaseModel):
+    items: List[ReviewResponse] = Field(..., description="评价列表")
+    total: int = Field(..., description="总数量")
+    avg_rating: float = Field(..., description="平均评分", examples=[4.5])
+
+
+class ReviewStatsResponse(BaseModel):
+    total: int = Field(..., description="评价总数", examples=[128])
+    avg_rating: float = Field(..., description="平均评分", examples=[4.3])
+    rating_distribution: dict = Field(
+        ..., description="各星级数量分布",
+        examples=[{"5": 60, "4": 35, "3": 20, "2": 8, "1": 5}],
+    )
+
+
+# ──────────────────────────────────────────────
+# 文件上传模块
+# ──────────────────────────────────────────────
+
+class UploadResponse(BaseModel):
+    url: str = Field(
+        ..., description="文件访问 URL",
+        examples=["https://cdn.example.com/uploads/2024/01/abc123.jpg"],
+    )
+    filename: str = Field(..., description="原始文件名", examples=["photo.jpg"])
+    size: int = Field(..., description="文件大小（字节）", examples=[204800])
+    content_type: str = Field(..., description="文件 MIME 类型", examples=["image/jpeg"])
