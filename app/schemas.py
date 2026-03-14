@@ -11,6 +11,19 @@ class MessageResponse(BaseModel):
     message: str = Field(..., description="提示信息", examples=["操作成功"])
 
 
+class ErrorResponse(BaseModel):
+    detail: str = Field(..., description="错误信息", examples=["资源不存在"])
+
+
+class ValidationErrorItem(BaseModel):
+    field: str = Field(..., description="出错字段", examples=["price"])
+    message: str = Field(..., description="错误描述", examples=["值必须大于 0"])
+
+
+class ValidationErrorResponse(BaseModel):
+    detail: List[ValidationErrorItem] = Field(..., description="校验错误列表")
+
+
 # ──────────────────────────────────────────────
 # 用户模块
 # ──────────────────────────────────────────────

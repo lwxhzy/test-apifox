@@ -2,7 +2,7 @@ from fastapi import APIRouter, Query, Path, Body
 from typing import Optional, List
 
 from app.schemas import (
-    MessageResponse,
+    MessageResponse, ErrorResponse, ValidationErrorResponse,
     # 用户
     UserCreate, UserUpdate, UserResponse, UserListResponse,
     LoginRequest, LoginResponse, UserRole,
@@ -18,6 +18,14 @@ from app.schemas import (
 
 router = APIRouter(prefix="/api/v1")
 
+# ── 公共错误响应（定义一次，到处引用） ──
+
+RESP_401 = {401: {"model": ErrorResponse, "description": "未登录或令牌无效"}}
+RESP_403 = {403: {"model": ErrorResponse, "description": "无权限执行此操作"}}
+RESP_404 = {404: {"model": ErrorResponse, "description": "资源不存在"}}
+RESP_409 = {409: {"model": ErrorResponse, "description": "资源冲突（如重复创建）"}}
+RESP_422 = {422: {"model": ValidationErrorResponse, "description": "请求参数校验失败"}}
+
 
 # ──────────────────────────────────────────────
 # 认证
@@ -31,6 +39,7 @@ auth_router = APIRouter(prefix="/auth", tags=["认证"])
     summary="用户登录",
     description="使用用户名和密码登录，返回 JWT 令牌",
     response_model=LoginResponse,
+    responses={**RESP_422, 401: {"model": ErrorResponse, "description": "用户名或密码错误"}},
 )
 async def login(body: LoginRequest):
     return {
@@ -45,6 +54,7 @@ async def login(body: LoginRequest):
     summary="用户登出",
     description="注销当前用户的访问令牌",
     response_model=MessageResponse,
+    responses=RESP_401,
 )
 async def logout():
     return {"message": "登出成功"}
@@ -62,6 +72,7 @@ user_router = APIRouter(prefix="/users", tags=["用户管理"])
     summary="获取用户列表",
     description="分页查询用户列表，支持按用户名或邮箱搜索，支持按角色筛选",
     response_model=UserListResponse,
+    responses=RESP_401,
 )
 async def list_users(
     keyword: Optional[str] = Query(None, description="搜索关键词，匹配用户名或邮箱"),
@@ -79,6 +90,7 @@ async def list_users(
     description="注册一个新用户，用户名和邮箱不可重复",
     response_model=UserResponse,
     status_code=201,
+    responses={**RESP_401, **RESP_409, **RESP_422},
 )
 async def create_user(body: UserCreate):
     return {
@@ -93,6 +105,7 @@ async def create_user(body: UserCreate):
     summary="获取用户详情",
     description="根据用户 ID 获取用户详细信息",
     response_model=UserResponse,
+    responses={**RESP_401, **RESP_404},
 )
 async def get_user(
     user_id: int = Path(..., description="用户 ID", examples=[1]),
@@ -109,6 +122,7 @@ async def get_user(
     summary="更新用户信息",
     description="更新指定用户的基本信息，仅传入需要修改的字段",
     response_model=UserResponse,
+    responses={**RESP_401, **RESP_403, **RESP_404, **RESP_422},
 )
 async def update_user(
     user_id: int = Path(..., description="用户 ID"),
@@ -126,6 +140,7 @@ async def update_user(
     summary="删除用户",
     description="软删除指定用户，将 is_active 置为 false",
     response_model=MessageResponse,
+    responses={**RESP_401, **RESP_403, **RESP_404},
 )
 async def delete_user(
     user_id: int = Path(..., description="用户 ID"),
@@ -166,6 +181,7 @@ async def get_category_tree():
     description="创建一个新的分类，可指定父分类实现多级分类",
     response_model=CategoryResponse,
     status_code=201,
+    responses={**RESP_401, **RESP_409, **RESP_422},
 )
 async def create_category(body: CategoryCreate):
     return {
@@ -179,6 +195,7 @@ async def create_category(body: CategoryCreate):
     summary="更新分类",
     description="更新指定分类的名称、排序等信息",
     response_model=CategoryResponse,
+    responses={**RESP_401, **RESP_404, **RESP_422},
 )
 async def update_category(
     category_id: int = Path(..., description="分类 ID"),
@@ -195,6 +212,7 @@ async def update_category(
     summary="删除分类",
     description="删除指定分类。如果分类下有物品，需要先移除或转移物品",
     response_model=MessageResponse,
+    responses={**RESP_401, **RESP_404, 409: {"model": ErrorResponse, "description": "分类下仍有物品，无法删除"}},
 )
 async def delete_category(
     category_id: int = Path(..., description="分类 ID"),
@@ -214,6 +232,7 @@ item_router = APIRouter(prefix="/items", tags=["物品管理"])
     summary="获取物品列表",
     description="分页查询物品列表，支持按名称搜索、按分类和状态筛选、按价格排序",
     response_model=ItemListResponse,
+    responses=RESP_401,
 )
 async def list_items(
     keyword: Optional[str] = Query(None, description="搜索关键词，模糊匹配物品名称"),
@@ -239,6 +258,7 @@ async def list_items(
     description="创建一个新的物品，初始状态为 draft",
     response_model=ItemResponse,
     status_code=201,
+    responses={**RESP_401, **RESP_422},
 )
 async def create_item(body: ItemCreate):
     return {
@@ -254,6 +274,7 @@ async def create_item(body: ItemCreate):
     summary="获取物品详情",
     description="根据 ID 获取物品详细信息，包含分类名称",
     response_model=ItemResponse,
+    responses={**RESP_401, **RESP_404},
 )
 async def get_item(
     item_id: int = Path(..., description="物品 ID", examples=[1]),
@@ -273,6 +294,7 @@ async def get_item(
     summary="更新物品",
     description="更新指定物品的信息，仅传入需要修改的字段",
     response_model=ItemResponse,
+    responses={**RESP_401, **RESP_403, **RESP_404, **RESP_422},
 )
 async def update_item(
     item_id: int = Path(..., description="物品 ID"),
@@ -292,6 +314,7 @@ async def update_item(
     summary="删除物品",
     description="永久删除指定物品，删除后不可恢复",
     response_model=MessageResponse,
+    responses={**RESP_401, **RESP_403, **RESP_404},
 )
 async def delete_item(
     item_id: int = Path(..., description="物品 ID"),
@@ -304,6 +327,7 @@ async def delete_item(
     summary="更新物品状态",
     description="单独更新物品状态，如上架 (active)、下架 (archived)、售罄 (sold_out)",
     response_model=ItemResponse,
+    responses={**RESP_401, **RESP_403, **RESP_404},
 )
 async def update_item_status(
     item_id: int = Path(..., description="物品 ID"),
@@ -330,6 +354,7 @@ order_router = APIRouter(prefix="/orders", tags=["订单管理"])
     summary="获取订单列表",
     description="分页查询订单列表，支持按状态筛选和时间范围查询",
     response_model=OrderListResponse,
+    responses=RESP_401,
 )
 async def list_orders(
     status: Optional[OrderStatus] = Query(None, description="按订单状态筛选"),
@@ -348,6 +373,7 @@ async def list_orders(
     description="创建新订单，自动计算商品金额。库存不足时返回 400 错误",
     response_model=OrderResponse,
     status_code=201,
+    responses={**RESP_401, **RESP_422, 400: {"model": ErrorResponse, "description": "库存不足"}},
 )
 async def create_order(body: OrderCreate):
     return {
@@ -371,6 +397,7 @@ async def create_order(body: OrderCreate):
     summary="获取订单详情",
     description="根据订单 ID 获取完整订单信息，包含商品明细",
     response_model=OrderResponse,
+    responses={**RESP_401, **RESP_404},
 )
 async def get_order(
     order_id: int = Path(..., description="订单 ID", examples=[1001]),
@@ -392,6 +419,7 @@ async def get_order(
     summary="订单支付",
     description="将待支付订单标记为已支付",
     response_model=OrderResponse,
+    responses={**RESP_401, **RESP_404, 409: {"model": ErrorResponse, "description": "订单状态不允许支付"}},
 )
 async def pay_order(
     order_id: int = Path(..., description="订单 ID"),
@@ -413,6 +441,7 @@ async def pay_order(
     summary="订单发货",
     description="将已支付订单标记为已发货，需要管理员权限",
     response_model=OrderResponse,
+    responses={**RESP_401, **RESP_403, **RESP_404, 409: {"model": ErrorResponse, "description": "订单状态不允许发货"}},
 )
 async def ship_order(
     order_id: int = Path(..., description="订单 ID"),
@@ -435,6 +464,7 @@ async def ship_order(
     summary="取消订单",
     description="取消订单。仅待支付状态的订单可取消，已支付订单请走退款流程",
     response_model=OrderResponse,
+    responses={**RESP_401, **RESP_404, 409: {"model": ErrorResponse, "description": "仅待支付订单可取消"}},
 )
 async def cancel_order(
     order_id: int = Path(..., description="订单 ID"),
@@ -463,6 +493,7 @@ stats_router = APIRouter(prefix="/stats", tags=["数据统计"])
     summary="获取仪表盘数据",
     description="获取系统总览数据，包括用户数、物品数、订单数、营收及最近 7 天趋势",
     response_model=DashboardResponse,
+    responses={**RESP_401, **RESP_403},
 )
 async def get_dashboard():
     return {
