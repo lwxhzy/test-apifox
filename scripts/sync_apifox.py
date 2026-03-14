@@ -28,14 +28,19 @@ def sync_to_apifox(spec: dict, access_token: str, project_id: str):
     resp = httpx.post(
         url,
         headers={
+            "X-Apifox-Api-Version": "2024-03-28",
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/json",
         },
         json={
             "input": json.dumps(spec, ensure_ascii=False),
             "options": {
+                "targetEndpointFolderId": 0,
+                "targetSchemaFolderId": 0,
                 "endpointOverwriteBehavior": "OVERWRITE_EXISTING",
+                "schemaOverwriteBehavior": "OVERWRITE_EXISTING",
                 "updateFolderOfChangedEndpoint": True,
+                "prependBasePath": False,
             },
         },
         timeout=30,
