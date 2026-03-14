@@ -40,7 +40,9 @@ def sync_to_apifox(spec: dict, access_token: str, project_id: str):
         },
         timeout=30,
     )
-    resp.raise_for_status()
+    if not resp.is_success:
+        print(f"Apifox API 错误 [{resp.status_code}]: {resp.text}")
+        resp.raise_for_status()
     return resp.json()
 
 
